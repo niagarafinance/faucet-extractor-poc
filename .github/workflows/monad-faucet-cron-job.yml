@@ -1,0 +1,37 @@
+name: Extract Monad Testnet Tokens
+
+on:
+    # schedule:
+    #     - cron: "0 */6 * * *"
+    workflow_dispatch:
+
+jobs:
+    extract-monad-token:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.x"
+
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install -r requirements.txt
+
+            - name: Set up output directory and environment variables
+              run: |
+                  mkdir -p output
+                  echo "TODAY=$(date +'%Y%m%d')" >> $GITHUB_ENV
+
+            - name: Run Python script
+              env:
+                  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+                  ERC20_ADDRESSES: ${{ secrets.ERC20_ADDRESSES }}
+                  MONAD_FAUCET_URL: ${{ secrets.MONAD_FAUCET_URL }}
+              run: |
+                  python src/extract.py -f MON
