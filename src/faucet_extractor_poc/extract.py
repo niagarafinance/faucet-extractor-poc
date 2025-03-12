@@ -5,11 +5,13 @@ import time
 from typing import List
 
 from dotenv import load_dotenv
-from utils.validation import is_valid_address
-from discord.webhook import send_workflow_run_alert
 
-from faucets.bera import BeraFaucet
-from faucets.monad import MonadFaucet
+# from utils.validation import is_valid_address
+from .discord.webhook import send_workflow_run_alert
+from .utils.validation import is_valid_address
+
+from .faucets.bera import BeraFaucet
+from .faucets.monad import MonadFaucet
 
 VALID_FAUCET_TYPES = {"BERA", "LUMIA", "MON", "IP"}
 
@@ -76,7 +78,7 @@ def process_addresses_with_retries(
 
         if failed_addresses:
             print(f"Retrying failed addresses: {failed_addresses}")
-            time.sleep(2)  # Wait 30 seconds before retrying
+            time.sleep(30)  # Wait 30 seconds before retrying
 
         attempt += 1
 

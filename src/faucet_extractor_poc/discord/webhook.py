@@ -19,14 +19,14 @@ def send_workflow_run_alert(
     current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     data = {
-        "username": "Pour Tokens Bot",
+        "username": "Niagara Finance Bot",
         "embeds": [
             {
                 "title": f"Summary for Scheduled Faucet Claim (${token_symbol}):",
-                "footer": {"text": "Powered by Pour Tokens"},
+                "footer": {"text": "Powered by Niagara Finance"},
                 "timestamp": current_date,
                 "description": message,
-                "url": "https://pourtokens.com",
+                "url": "https://niagarafinance.com",
                 "color": 0x212121,
                 "fields": [
                     {
