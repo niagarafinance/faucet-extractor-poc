@@ -29,7 +29,7 @@ The following environment variables need to be set before using the project:
 Install the package directly from PyPI:
 
 ```bash
-pip install faucet_extractor_poc
+pip install faucet-extractor-poc
 ```
 
 ### Method 2: Install from Source
@@ -66,26 +66,20 @@ To run the project, use the appropriate command:
 ### Using the installed package
 
 ```bash
-faucet_extractor_poc --faucet MON 0x1234567890123456789012345678901234567890
-```
-
-### Single address with faucet type
-
-```bash
-faucet_extractor_poc --faucet MON 0x1234567890123456789012345678901234567890
+faucet-extractor --faucet MON 0x1234567890123456789012345678901234567890
 ```
 
 ### Multiple addresses with faucet type
 
 ```bash
-faucet_extractor_poc --faucet BERA 0xAddress1 0xAddress2 0xAddress3
+faucet-extractor --faucet BERA 0xAddress1 0xAddress2 0xAddress3
 ```
 
 ### Using environment variable with faucet
 
 ```bash
 export ERC20_ADDRESSES="0xAddress1,0xAddress2"
-faucet_extractor_poc --faucet BERA
+faucet-extractor --faucet BERA
 ```
 
 ### Running directly from the source
@@ -93,11 +87,11 @@ faucet_extractor_poc --faucet BERA
 If you installed from source, you can also run the module directly:
 
 ```bash
-python -m src.faucet_extractor_poc.extract --faucet MON 0x1234567890123456789012345678901234567890
+python -m src.faucet-extractor.extract --faucet MON 0x1234567890123456789012345678901234567890
 ```
 
 ### Show help
 
 ```bash
-faucet_extractor_poc --help
+faucet-extractor --help
 ```
