@@ -15,7 +15,7 @@ from .faucets.monad import MonadFaucet
 VALID_FAUCET_TYPES = {"BERA", "LUMIA", "MON", "IP"}
 
 
-def process_address(address, faucet_type):
+def process_address(address: str, faucet_type: str) -> bool:
     """Process a single ERC20 address for a specific faucet"""
     try:
         if faucet_type == "BERA":
@@ -23,14 +23,16 @@ def process_address(address, faucet_type):
             return bera_faucet.claim(address)
         if faucet_type == "LUMIA":
             print(f"Using Lumia faucet claim logic for {address}")
+            return False
         if faucet_type == "MON":
             monad_faucet = MonadFaucet()
             return monad_faucet.claim(address)
         if faucet_type == "IP":
             print(f"Using Story faucet claim logic for {address}")
+            return False
     except (ValueError, TypeError, RuntimeError) as e:
         print(f"Error processing address {address} on faucet {faucet_type}: {str(e)}")
-        raise
+    return False
 
 
 def process_addresses_with_retries(
