@@ -6,7 +6,6 @@ from typing import List
 
 from dotenv import load_dotenv
 
-# from utils.validation import is_valid_address
 from .discord.webhook import send_workflow_run_alert
 from .utils.validation import is_valid_address
 
@@ -37,7 +36,7 @@ def process_address(address: str, faucet_type: str) -> bool:
 
 
 def process_addresses_with_retries(
-    addresses: List[str], faucet_type: str, max_retries: int = 5
+    addresses: List[str], faucet_type: str, max_retries: int = 100
 ) -> None:
     """
     Process addresses with retries for failed attempts.
