@@ -58,7 +58,7 @@ Before running the project, make sure to set the required environment variables.
 
 ```bash
 export BERA_FAUCET_URL="https://bera-faucet-url.com"
-export MONAD_FAUCET_URL="https://monad-faucet-url.com""
+export MONAD_FAUCET_URL="https://monad-faucet-url.com"
 ```
 
 To run the project, use the appropriate command:
@@ -87,7 +87,7 @@ faucet-extractor --faucet BERA
 If you installed from source, you can also run the module directly:
 
 ```bash
-python -m src.faucet-extractor.extract --faucet MON 0x1234567890123456789012345678901234567890
+python -m src.faucet_extractor_poc.extract --faucet MON 0x1234567890123456789012345678901234567890
 ```
 
 ### Show help
