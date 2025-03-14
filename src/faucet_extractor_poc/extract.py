@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 import time
-from typing import List
+from typing import List, Tuple
 
 from dotenv import load_dotenv
 
@@ -22,13 +22,13 @@ def process_address(address: str, faucet_type: str) -> bool:
             bera_faucet = BeraFaucet()
             return bera_faucet.claim(address)
         if faucet_type == "LUMIA":
-            print(f"Using Lumia faucet claim logic for {address}")
+            print("Not implemented")
             return False
         if faucet_type == "MON":
             monad_faucet = MonadFaucet()
             return monad_faucet.claim(address)
         if faucet_type == "IP":
-            print(f"Using Story faucet claim logic for {address}")
+            print("Not implemented")
             return False
     except (ValueError, TypeError, RuntimeError) as e:
         print(f"Error processing address {address} on faucet {faucet_type}: {str(e)}")
@@ -37,10 +37,10 @@ def process_address(address: str, faucet_type: str) -> bool:
 
 def process_addresses_with_retries(
     addresses: List[str], faucet_type: str, max_retries: int = 100
-) -> None:
+) -> Tuple[dict, int]:
     """
     Process addresses with retries for failed attempts.
-    Returns when all addresses succeed or max_retries is reached for failed addresses.
+    Returns the address status and the number of attempts made.
     """
     # Track addresses and their failure counts
     address_status = {addr: {"failed": 0, "success": False} for addr in addresses}
@@ -68,6 +68,8 @@ def process_addresses_with_retries(
                 address_status[address]["failed"] += 1
                 failed_addresses.append(address)
 
+            time.sleep(2)
+
         # Check if all addresses succeeded or reached max retries
         all_done = all(
             status["success"] or status["failed"] >= max_retries
@@ -79,7 +81,7 @@ def process_addresses_with_retries(
 
         if failed_addresses:
             print(f"Retrying failed addresses: {failed_addresses}")
-            time.sleep(30)  # Wait 30 seconds before retrying
+            time.sleep(60)  # Wait 60 seconds before retrying
 
         attempt += 1
 
@@ -100,6 +102,8 @@ def process_addresses_with_retries(
     send_workflow_run_alert(
         faucet_type, alert_message, len(addresses), successful_count, attempt
     )
+
+    return address_status, attempt
 
 
 def main():
@@ -168,6 +172,6 @@ if __name__ == "__main__":
 
     try:
         main()
-    except (ValueError, TypeError, RuntimeError) as e:
-        print(f"Fatal error: {str(e)}")
+    except (ValueError, TypeError, RuntimeError, KeyboardInterrupt) as e:
+        print(str(e))
         sys.exit(1)
