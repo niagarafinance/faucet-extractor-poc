@@ -36,7 +36,7 @@ def process_address(address: str, faucet_type: str) -> bool:
 
 
 def process_addresses_with_retries(
-    addresses: List[str], faucet_type: str, max_retries: int = 100
+    addresses: List[str], faucet_type: str, max_retries: int = 10
 ) -> Tuple[dict, int]:
     """
     Process addresses with retries for failed attempts.
@@ -68,7 +68,7 @@ def process_addresses_with_retries(
                 address_status[address]["failed"] += 1
                 failed_addresses.append(address)
 
-            time.sleep(2)
+            time.sleep(5)
 
         # Check if all addresses succeeded or reached max retries
         all_done = all(
@@ -81,7 +81,7 @@ def process_addresses_with_retries(
 
         if failed_addresses:
             print(f"Retrying failed addresses: {failed_addresses}")
-            time.sleep(60)  # Wait 60 seconds before retrying
+            time.sleep(30)  # Wait 45 seconds before retrying
 
         attempt += 1
 
@@ -164,7 +164,9 @@ def main():
         sys.exit(1)
 
     # Process addresses with retries
-    process_addresses_with_retries(valid_addresses, faucet_type)
+    process_addresses_with_retries(
+        valid_addresses, faucet_type, max_retries=max(1, len(valid_addresses) // 2)
+    )
 
 
 if __name__ == "__main__":
