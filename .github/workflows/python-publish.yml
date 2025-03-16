@@ -11,6 +11,10 @@ name: Upload Python Package
 on:
     release:
         types: [published]
+    workflow_run:
+        workflows: ["Bump Version on Release"]
+        types:
+            - completed
 
 permissions:
     contents: read
@@ -18,9 +22,12 @@ permissions:
 jobs:
     release-build:
         runs-on: ubuntu-latest
+        if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'release' }}
 
         steps:
             - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.workflow_run && 'main' || github.ref }}
 
             - uses: actions/setup-python@v5
               with:
