@@ -57,7 +57,7 @@ class BaseFaucet(ABC):
                         f"Status: {response.status_code}, Response: {response.text}"
                     )
             return success
-        except Exception as e:
+        except requests.exceptions.RequestException as e:
             print(
                 f"Error: Failed to claim for address {address} on {self.FAUCET_NAME} - {str(e)}"
             )
