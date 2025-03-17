@@ -37,22 +37,28 @@ class BaseFaucet(ABC):
             # "token": os.getenv("CAPTCHA_TOKEN"), # Required reCAPTCHA token
         }
 
-        response = requests.post(self.FAUCET_URL, json=payload, timeout=10)
+        try:
+            response = requests.post(self.FAUCET_URL, json=payload, timeout=10)
 
-        success = response.status_code == 200
-        if success:
-            print(f"Success: Address {address} processed on {self.FAUCET_NAME} faucet")
-        else:
-            if response.headers.get("Content-Type") == "application/json":
+            success = response.status_code == 200
+            if success:
                 print(
-                    f"Failed: Address {address} on {self.FAUCET_NAME}"
-                    " - "
-                    f"Status: {response.status_code}, Response: {response.json()}"
+                    f"Success: Address {address} processed on {self.FAUCET_NAME} faucet"
                 )
             else:
-                print(
-                    f"Failed: Address {address} on {self.FAUCET_NAME}"
-                    " - "
-                    f"Status: {response.status_code}, Response: {response.text}"
-                )
-        return success
+                if response.headers.get("Content-Type") == "application/json":
+                    print(
+                        f"Failed: Address {address} on {self.FAUCET_NAME}\n"
+                        f"Status: {response.status_code}, Response: {response.json()}"
+                    )
+                else:
+                    print(
+                        f"Failed: Address {address} on {self.FAUCET_NAME}\n"
+                        f"Status: {response.status_code}, Response: {response.text}"
+                    )
+            return success
+        except Exception as e:
+            print(
+                f"Error: Failed to claim for address {address} on {self.FAUCET_NAME} - {str(e)}"
+            )
+            return False
