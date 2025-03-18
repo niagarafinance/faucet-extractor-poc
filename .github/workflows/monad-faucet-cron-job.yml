@@ -8,6 +8,8 @@ on:
 jobs:
     extract-monad-token:
         runs-on: ubuntu-latest
+        environment:
+            name: ${{ github.ref == 'refs/heads/main' && 'release' || 'staging' }}
 
         steps:
             - name: Checkout repository
