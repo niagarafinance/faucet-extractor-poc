@@ -8,6 +8,8 @@ on:
 jobs:
     extract-monad-token:
         runs-on: ubuntu-latest
+        environment:
+            name: ${{ github.ref == 'refs/heads/main' && 'release' || 'staging' }}
 
         steps:
             - name: Checkout repository
@@ -29,4 +31,10 @@ jobs:
                   ERC20_ADDRESSES: ${{ secrets.ERC20_ADDRESSES }}
                   MONAD_FAUCET_URL: ${{ secrets.MONAD_FAUCET_URL }}
               run: |
-                  faucet_extractor_poc --faucet MON
+                  python -m src.faucet_extractor_poc.extract --faucet MON
+
+            - name: Upload logs as artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: monad-logs
+                  path: logs/
