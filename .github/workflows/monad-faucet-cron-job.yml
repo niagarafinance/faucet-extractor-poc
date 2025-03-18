@@ -30,3 +30,9 @@ jobs:
                   MONAD_FAUCET_URL: ${{ secrets.MONAD_FAUCET_URL }}
               run: |
                   python -m src.faucet_extractor_poc.extract --faucet MON
+
+            - name: Upload logs as artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: monad-logs
+                  path: logs/
