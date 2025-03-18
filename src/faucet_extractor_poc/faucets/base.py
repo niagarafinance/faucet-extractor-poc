@@ -11,6 +11,9 @@ from dataclasses import dataclass
 import requests
 from dotenv import load_dotenv
 
+from ..utils.logger import setup_logger
+
+
 load_dotenv()
 
 
@@ -22,6 +25,10 @@ class BaseFaucet(ABC):
     FAUCET_NAME: str  # pylint: disable=C0103
     FAUCET_URL: str  # pylint: disable=C0103
 
+    def __post_init__(self):
+        """Initialize the logger after dataclass initialization"""
+        self.logger = setup_logger(self.FAUCET_NAME)
+
     def claim(self, address) -> bool:
         """
         Send a request to claim tokens from the faucet for the given address.
@@ -32,6 +39,8 @@ class BaseFaucet(ABC):
         Returns:
             bool: True if the claim was successful, False otherwise
         """
+        self.logger.info("Attempting to claim tokens for address: %s", address)
+
         payload = {
             "address": address,
             # "token": os.getenv("CAPTCHA_TOKEN"), # Required reCAPTCHA token
@@ -42,23 +51,24 @@ class BaseFaucet(ABC):
 
             success = response.status_code == 200
             if success:
-                print(
+                message = (
                     f"Success: Address {address} processed on {self.FAUCET_NAME} faucet"
                 )
+                self.logger.info(message)
             else:
                 if response.headers.get("Content-Type") == "application/json":
-                    print(
+                    message = (
                         f"Failed: Address {address} on {self.FAUCET_NAME}\n"
                         f"Status: {response.status_code}, Response: {response.json()}"
                     )
                 else:
-                    print(
+                    message = (
                         f"Failed: Address {address} on {self.FAUCET_NAME}\n"
                         f"Status: {response.status_code}, Response: {response.text}"
                     )
+                self.logger.error(message)
             return success
         except requests.exceptions.RequestException as e:
-            print(
-                f"Error: Failed to claim for address {address} on {self.FAUCET_NAME} - {str(e)}"
-            )
+            message = f"Error: Failed to claim for address {address} on {self.FAUCET_NAME} - {str(e)}"
+            self.logger.error(message)
             return False

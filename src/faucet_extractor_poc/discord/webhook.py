@@ -4,7 +4,11 @@ import requests
 
 from dotenv import load_dotenv
 
+from ..utils.logger import setup_logger
+
 load_dotenv()
+
+logger = setup_logger("discord")
 
 
 def send_workflow_run_alert(
@@ -53,10 +57,13 @@ def send_workflow_run_alert(
         try:
             webhook_response = requests.post(webhook_url, json=data, timeout=10)
             if webhook_response.status_code == 204:
-                print("Notification sent to Discord webhook.")
+                logger.info("Notification sent to Discord webhook.")
             else:
-                print(
-                    f"Failed to send notification to Discord webhook. Status code: {webhook_response.status_code}"
+                logger.error(
+                    "Failed to send notification to Discord webhook. Status code: %d",
+                    webhook_response.status_code,
                 )
         except requests.exceptions.RequestException as e:
-            print(f"Failed to send notification to Discord webhook. Error: {e}")
+            logger.error("Failed to send notification to Discord webhook. Error: %s", e)
+    else:
+        logger.warning("No Discord webhook URL configured, skipping notification")
