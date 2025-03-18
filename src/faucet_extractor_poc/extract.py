@@ -8,11 +8,13 @@ from dotenv import load_dotenv
 
 from .discord.webhook import send_workflow_run_alert
 from .utils.validation import is_valid_address
-
+from .utils.logger import setup_logger
 from .faucets.bera import BeraFaucet
 from .faucets.monad import MonadFaucet
 
 VALID_FAUCET_TYPES = {"BERA", "LUMIA", "MON", "IP"}
+
+logger = setup_logger("extractor")
 
 
 def process_address(address: str, faucet_type: str) -> bool:
@@ -22,16 +24,18 @@ def process_address(address: str, faucet_type: str) -> bool:
             bera_faucet = BeraFaucet()
             return bera_faucet.claim(address)
         if faucet_type == "LUMIA":
-            print("Not implemented")
+            logger.info("Lumia faucet not implemented")
             return False
         if faucet_type == "MON":
             monad_faucet = MonadFaucet()
             return monad_faucet.claim(address)
         if faucet_type == "IP":
-            print("Not implemented")
+            logger.info("IP faucet not implemented")
             return False
     except (ValueError, TypeError, RuntimeError) as e:
-        print(f"Error processing address {address} on faucet {faucet_type}: {str(e)}")
+        logger.error(
+            "Error processing address %s on faucet %s: %s", address, faucet_type, str(e)
+        )
     return False
 
 
@@ -48,7 +52,7 @@ def process_addresses_with_retries(
     attempt = 1
     while True:
         failed_addresses = []
-        print(f"\nAttempt {attempt} of {max_retries}")
+        logger.info("Attempt %d of %d", attempt, max_retries)
 
         # Process only addresses that haven't succeeded yet
         for address in addresses:
@@ -56,8 +60,10 @@ def process_addresses_with_retries(
                 continue
 
             if address_status[address]["failed"] >= max_retries:
-                print(
-                    f"Address {address} reached max retries ({max_retries}), skipping"
+                logger.warning(
+                    "Address %s reached max retries (%d), skipping",
+                    address,
+                    max_retries,
                 )
                 continue
 
@@ -80,7 +86,7 @@ def process_addresses_with_retries(
             break
 
         if failed_addresses:
-            print(f"Retrying failed addresses: {failed_addresses}")
+            logger.info("Retrying failed addresses: %s", failed_addresses)
             time.sleep(30)  # Wait 45 seconds before retrying
 
         attempt += 1
@@ -88,12 +94,15 @@ def process_addresses_with_retries(
     successful_count = sum(1 for status in address_status.values() if status["success"])
 
     # Print final status
-    print("\nFinal Status:")
+    logger.info("Final Status:")
     for address, status in address_status.items():
         if status["success"]:
-            print(f"Address {address}: Succeeded")
+            logger.info("Address %s: Succeeded", address)
+
         else:
-            print(f"Address {address}: Failed after {status['failed']} attempts")
+            logger.info(
+                "Address %s: Failed after %d attempts", address, status["failed"]
+            )
 
     alert_message = "Workflow run successful for all addresses."
     if successful_count != len(addresses):
@@ -128,6 +137,7 @@ def main():
 
     # Get faucet type
     faucet_type = args.faucet
+    logger.info("Starting extraction for faucet type: %s", faucet_type)
 
     # Initialize addresses list
     addresses = []
@@ -143,8 +153,8 @@ def main():
 
     # If still no addresses, exit with error
     if not addresses:
-        print(
-            "Error: No addresses provided."
+        logger.error(
+            "Error: No addresses provided. "
             "Either provide addresses as arguments or set ERC20_ADDRESSES env variable"
         )
         sys.exit(1)
@@ -155,13 +165,15 @@ def main():
         if not address:
             continue
         if not is_valid_address(address):
-            print(f"Invalid address format: {address}, skipping")
+            logger.warning("Invalid address format: %s, skipping", address)
             continue
         valid_addresses.append(address)
 
     if not valid_addresses:
-        print("No valid addresses to process")
+        logger.error("No valid addresses to process")
         sys.exit(1)
+
+    logger.info("Processing %d valid addresses", len(valid_addresses))
 
     # Process addresses with retries
     process_addresses_with_retries(
