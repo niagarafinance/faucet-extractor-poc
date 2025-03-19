@@ -9,7 +9,7 @@ jobs:
     extract-bera-token:
         runs-on: ubuntu-latest
         environment:
-            name: ${{ github.ref == 'refs/heads/main' && 'release' || 'staging' }}
+            name: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
 
         steps:
             - name: Checkout repository
