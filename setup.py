@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
     setup(
         name="faucet-extractor-poc",
-        version="1.2.1",
+        version="1.2.2",
         author="Niagara Finance",
         author_email="niagarafinance@proton.me",
         description="Testnet faucet extractor (Proof of Concept)",
