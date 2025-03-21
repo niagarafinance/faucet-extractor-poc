@@ -17,26 +17,123 @@ VALID_FAUCET_TYPES = {"BERA", "LUMIA", "MON", "IP"}
 logger = setup_logger("extractor")
 
 
-def process_address(address: str, faucet_type: str) -> bool:
-    """Process a single ERC20 address for a specific faucet"""
+def process_address(address: str, faucet_type: str) -> tuple[bool, bool]:
+    """
+    Process a single ERC20 address for a specific faucet
+
+    Returns:
+        tuple: (success, rate_limited)
+            - success: True if claim was successful
+            - rate_limited: True if address is rate limited and should not be retried
+    """
     try:
         if faucet_type == "BERA":
             bera_faucet = BeraFaucet()
-            return bera_faucet.claim(address)
+            success, _, rate_limited = bera_faucet.claim(address)
+            return success, rate_limited
         if faucet_type == "LUMIA":
             logger.info("Lumia faucet not implemented")
-            return False
+            return False, False
         if faucet_type == "MON":
             monad_faucet = MonadFaucet()
-            return monad_faucet.claim(address)
+            success, _, rate_limited = monad_faucet.claim(address)
+            return success, rate_limited
         if faucet_type == "IP":
             logger.info("IP faucet not implemented")
-            return False
+            return False, False
     except (ValueError, TypeError, RuntimeError) as e:
         logger.error(
             "Error processing address %s on faucet %s: %s", address, faucet_type, str(e)
         )
-    return False
+    return False, False
+
+
+def _process_single_address(
+    address: str, address_status: dict, faucet_type: str, max_retries: int
+) -> bool:
+    """
+    Process a single address and update its status.
+    Returns True if address needs to be retried, False otherwise.
+    """
+    if address_status[address]["success"] or address_status[address]["rate_limited"]:
+        return False
+
+    if address_status[address]["failed"] >= max_retries:
+        logger.warning(
+            "Address %s reached max retries (%d), skipping",
+            address,
+            max_retries,
+        )
+        return False
+
+    success, rate_limited = process_address(address, faucet_type)
+
+    if success:
+        address_status[address]["success"] = True
+    elif rate_limited:
+        address_status[address]["rate_limited"] = True
+        logger.info("Address %s is rate limited, skipping future retries", address)
+    else:
+        address_status[address]["failed"] += 1
+        return True  # Needs retry
+
+    return False  # No need to retry
+
+
+def _is_processing_complete(
+    address_status: dict, max_retries: int, attempt: int
+) -> bool:
+    """
+    Check if processing is complete based on address statuses and attempt count.
+    """
+    all_done = all(
+        status["success"] or status["rate_limited"] or status["failed"] >= max_retries
+        for status in address_status.values()
+    )
+
+    return all_done or attempt >= max_retries
+
+
+def _log_final_status(
+    address_status: dict, addresses: List[str], faucet_type: str, attempt: int
+) -> None:
+    """
+    Log final status and send alerts.
+    """
+    successful_count = sum(1 for status in address_status.values() if status["success"])
+    rate_limited_count = sum(
+        1 for status in address_status.values() if status["rate_limited"]
+    )
+
+    # Print final status
+    logger.info("Final Status:")
+    for address, status in address_status.items():
+        if status["success"]:
+            logger.info("Address %s: Succeeded", address)
+        elif status["rate_limited"]:
+            logger.info("Address %s: Rate limited (skipped)", address)
+        else:
+            logger.info(
+                "Address %s: Failed after %d attempts", address, status["failed"]
+            )
+
+    alert_message = "Workflow run completed."
+    details = []
+    if successful_count > 0:
+        details.append(f"{successful_count} addresses succeeded")
+    if rate_limited_count > 0:
+        details.append(f"{rate_limited_count} addresses rate limited")
+    if len(addresses) - successful_count - rate_limited_count > 0:
+        details.append(
+            f"{len(addresses) - successful_count - rate_limited_count} addresses failed"
+        )
+
+    if details:
+        alert_message += " " + ", ".join(details) + "."
+
+    send_workflow_run_alert(
+        faucet_type, alert_message, len(addresses), successful_count, attempt
+    )
 
 
 def process_addresses_with_retries(
@@ -46,72 +143,37 @@ def process_addresses_with_retries(
     Process addresses with retries for failed attempts.
     Returns the address status and the number of attempts made.
     """
-    # Track addresses and their failure counts
-    address_status = {addr: {"failed": 0, "success": False} for addr in addresses}
+    # Track addresses and their statuses
+    address_status = {
+        addr: {"failed": 0, "success": False, "rate_limited": False}
+        for addr in addresses
+    }
 
     attempt = 1
     while True:
         failed_addresses = []
         logger.info("Attempt %d of %d", attempt, max_retries)
 
-        # Process only addresses that haven't succeeded yet
+        # Process only addresses that haven't succeeded or been rate limited
         for address in addresses:
-            if address_status[address]["success"]:
-                continue
-
-            if address_status[address]["failed"] >= max_retries:
-                logger.warning(
-                    "Address %s reached max retries (%d), skipping",
-                    address,
-                    max_retries,
-                )
-                continue
-
-            success = process_address(address, faucet_type)
-            if success:
-                address_status[address]["success"] = True
-            else:
-                address_status[address]["failed"] += 1
+            needs_retry = _process_single_address(
+                address, address_status, faucet_type, max_retries
+            )
+            if needs_retry:
                 failed_addresses.append(address)
-
             time.sleep(5)
 
-        # Check if all addresses succeeded or reached max retries
-        all_done = all(
-            status["success"] or status["failed"] >= max_retries
-            for status in address_status.values()
-        )
-
-        if all_done or attempt >= max_retries:
+        # Check if all addresses succeeded, are rate limited, or reached max retries
+        if _is_processing_complete(address_status, max_retries, attempt):
             break
 
         if failed_addresses:
             logger.info("Retrying failed addresses: %s", failed_addresses)
-            time.sleep(30)  # Wait 45 seconds before retrying
+            time.sleep(30)  # Wait 30 seconds before retrying
 
         attempt += 1
 
-    successful_count = sum(1 for status in address_status.values() if status["success"])
-
-    # Print final status
-    logger.info("Final Status:")
-    for address, status in address_status.items():
-        if status["success"]:
-            logger.info("Address %s: Succeeded", address)
-
-        else:
-            logger.info(
-                "Address %s: Failed after %d attempts", address, status["failed"]
-            )
-
-    alert_message = "Workflow run successful for all addresses."
-    if successful_count != len(addresses):
-        alert_message = f"Workflow run unsuccessful for {len(addresses) - successful_count} addresses."
-
-    send_workflow_run_alert(
-        faucet_type, alert_message, len(addresses), successful_count, attempt
-    )
-
+    _log_final_status(address_status, addresses, faucet_type, attempt)
     return address_status, attempt
 
 

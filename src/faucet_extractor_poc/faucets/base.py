@@ -29,7 +29,7 @@ class BaseFaucet(ABC):
         """Initialize the logger after dataclass initialization"""
         self.logger = setup_logger(self.FAUCET_NAME)
 
-    def claim(self, address) -> bool:
+    def claim(self, address) -> tuple[bool, str, bool]:
         """
         Send a request to claim tokens from the faucet for the given address.
 
@@ -37,7 +37,10 @@ class BaseFaucet(ABC):
             address (str): The blockchain address to receive tokens
 
         Returns:
-            bool: True if the claim was successful, False otherwise
+            tuple:
+                bool: True if the claim was successful, False otherwise
+                str: Message describing the result
+                bool: True if rate limited (should not retry), False otherwise
         """
         self.logger.info("Attempting to claim tokens for address: %s", address)
 
@@ -50,25 +53,50 @@ class BaseFaucet(ABC):
             response = requests.post(self.FAUCET_URL, json=payload, timeout=10)
 
             success = response.status_code == 200
+            rate_limited = False
+            message = ""
+
             if success:
                 message = (
                     f"Success: Address {address} processed on {self.FAUCET_NAME} faucet"
                 )
                 self.logger.info(message)
             else:
-                if response.headers.get("Content-Type") == "application/json":
-                    message = (
-                        f"Failed: Address {address} on {self.FAUCET_NAME}\n"
-                        f"Status: {response.status_code}, Response: {response.json()}"
-                    )
+                # Check for rate limiting response
+                is_json = response.headers.get("Content-Type") == "application/json"
+
+                if is_json:
+                    json_data = response.json()
+                    # Check if this is a claim limit message
+                    if (
+                        isinstance(json_data, dict)
+                        and json_data.get("message") == "Claim limit reached."
+                    ):
+                        rate_limited = True
+                        remaining_time = json_data.get("remainingTime", 0) // 1000
+                        hours = remaining_time // 3600
+                        minutes = (remaining_time % 3600) // 60
+
+                        message = (
+                            f"Rate limited: Address {address} on {self.FAUCET_NAME} faucet - "
+                            f"Claim limit reached. Wait time: ~{hours}h {minutes}m"
+                        )
+                        self.logger.warning(message)
+                    else:
+                        message = (
+                            f"Failed: Address {address} on {self.FAUCET_NAME} faucet - "
+                            f"Status: {response.status_code}, {json_data.get('message')}"
+                        )
+                        self.logger.error(message)
                 else:
                     message = (
-                        f"Failed: Address {address} on {self.FAUCET_NAME}\n"
-                        f"Status: {response.status_code}, Response: {response.text}"
+                        f"Failed: Address {address} on {self.FAUCET_NAME} -"
+                        f"Status: {response.status_code}, {response.text}"
                     )
-                self.logger.error(message)
-            return success
+                    self.logger.error(message)
+
+            return success, message, rate_limited
         except requests.exceptions.RequestException as e:
             message = f"Error: Failed to claim for address {address} on {self.FAUCET_NAME} - {str(e)}"
             self.logger.error(message)
-            return False
+            return False, message, False
